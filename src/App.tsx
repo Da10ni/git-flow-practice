@@ -448,7 +448,7 @@ function App() {
           
           <div className="border-t border-gray-800 pt-8 flex flex-col sm:flex-row justify-between items-center">
             <p className="text-gray-400 text-sm">
-              © 2025 ReactFlow. All rights reserved.
+              © 2025 ReactFlow. All rights reserved.sdsd
             </p>
             <div className="flex space-x-6 mt-4 sm:mt-0">
               <a href="#" className="text-gray-400 hover:text-white transition-colors">Twitter</a>
