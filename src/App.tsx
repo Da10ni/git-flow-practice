@@ -456,7 +456,7 @@ function App() {
               <a href="#" className="text-gray-400 hover:text-white transition-colors">LinkedIn</a>
             </div>
           </div>
-        </div>dsaasd
+        </div>dsaasddasd
       </footer>
     </div>
   )
