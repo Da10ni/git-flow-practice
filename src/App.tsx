@@ -275,7 +275,7 @@ function App() {
               <p className="text-xl text-gray-600 mb-8 max-w-2xl">
                 Transform your ideas into stunning applications with our
                 cutting-edge platform. Join thousands of developers who trust us
-                to bring their visions to life.
+                to bring their visions to life.shahab-ud-din ghori
               </p>
 
               {/* Hero Actions */}
