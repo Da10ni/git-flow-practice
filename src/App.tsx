@@ -631,6 +631,7 @@ function App() {
                 LinkedIn
               </a>
             </div>
+            asdfasdfasdfasdfasd
           </div>
         </div>
       </footer>
