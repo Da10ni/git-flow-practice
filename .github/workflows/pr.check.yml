@@ -1,0 +1,89 @@
+# .github/workflows/gitflow-auto-merge.yml
+name: Git Flow Auto Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - develop
+
+jobs:
+  handle-gitflow-merge:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+      - name: Determine branch type and action
+        id: branch-info
+        run: |
+          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+          TARGET_BRANCH="${{ github.event.pull_request.base.ref }}"
+          
+          echo "source_branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
+          
+          if [[ "$BRANCH_NAME" == hotfix/* ]] && [[ "$TARGET_BRANCH" == "main" ]]; then
+            echo "action=merge-hotfix-to-development" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH_NAME" == release/* ]] && [[ "$TARGET_BRANCH" == "main" ]]; then
+            echo "action=merge-release-to-development" >> $GITHUB_OUTPUT
+            VERSION=$(echo "$BRANCH_NAME" | sed 's/release\///')
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          elif [[ "$BRANCH_NAME" == feature/* ]] && [[ "$TARGET_BRANCH" == "development" ]]; then
+            echo "action=feature-merged" >> $GITHUB_OUTPUT
+          else
+            echo "action=none" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Tag release
+        if: steps.branch-info.outputs.action == 'merge-release-to-develop'
+        run: |
+          git checkout main
+          git pull origin main
+          git tag -a "v${{ steps.branch-info.outputs.version }}" -m "Release version ${{ steps.branch-info.outputs.version }}"
+          git push origin "v${{ steps.branch-info.outputs.version }}"
+
+      - name: Merge to development (for hotfix/release)
+        if: contains(steps.branch-info.outputs.action, 'to-development')
+        run: |
+          git checkout development
+          git pull origin development
+          
+          # Merge main into development
+          git merge origin/main --no-ff -m "Auto-merge ${{ steps.branch-info.outputs.source_branch }} from main to development"
+          git push origin development
+        continue-on-error: true
+
+      - name: Create PR if merge fails
+        if: failure() && contains(steps.branch-info.outputs.action, 'to-development')
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: auto-merge-${{ github.run_number }}
+          title: "Auto-merge ${{ steps.branch-info.outputs.source_branch }} to development (conflicts)"
+          body: |
+            Automatic merge failed due to conflicts.
+            
+            Source: ${{ steps.branch-info.outputs.source_branch }} (via main)
+            Target: development
+            
+            Please resolve conflicts manually.
+          base: development
+          labels: |
+            auto-merge
+            conflict
+
+      - name: Delete merged branch
+        if: steps.branch-info.outputs.action != 'none'
+        run: |
+          git push origin --delete "${{ steps.branch-info.outputs.source_branch }}" || true
