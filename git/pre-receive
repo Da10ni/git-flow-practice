@@ -1,19 +1,143 @@
-#!/usr/bin/env bash
+#!/bin/sh
+# .git/hooks/pre-receive
+# Server-side hook to control what can be merged into protected branches
+# Make executable: chmod +x .git/hooks/pre-receive
 
+# Read all incoming changes
 while read oldrev newrev refname; do
+    # Extract branch name from refname (refs/heads/branch-name)
+    branch=$(echo "$refname" | sed 's|refs/heads/||')
+    
+    echo "🔍 Checking push to branch: $branch"
+    
+    # Skip if deleting branch
     if [ "$newrev" = "0000000000000000000000000000000000000000" ]; then
+        echo "ℹ️  Branch deletion, skipping checks"
         continue
     fi
     
-    branch=$(echo "$refname" | cut -d'/' -f3)
+    # Apply protection rules based on target branch
+    case "$branch" in
+        main)
+            echo "🛡️  Checking main branch protection..."
+            
+            # Get list of commits being pushed
+            if [ "$oldrev" = "0000000000000000000000000000000000000000" ]; then
+                # New branch, check all commits
+                commits=$(git rev-list "$newrev")
+            else
+                # Existing branch, check new commits
+                commits=$(git rev-list "$oldrev..$newrev")
+            fi
+            
+            # Check each commit for allowed merge patterns
+            for commit in $commits; do
+                # Get commit message
+                commit_msg=$(git log --format=%s -n 1 "$commit")
+                
+                echo "Checking commit: $commit_msg"
+                
+                # Allow hotfix and release merges
+                if echo "$commit_msg" | grep -E "(Merge|merge).*(hotfix/|release/)" >/dev/null; then
+                    echo "✅ Allowed: hotfix/release merge to main"
+                    continue
+                fi
+                
+                # Allow direct hotfix/release commits (for squash merges)
+                if echo "$commit_msg" | grep -E "^(hotfix/|release/)" >/dev/null; then
+                    echo "✅ Allowed: hotfix/release commit to main"
+                    continue
+                fi
+                
+                # Check if this is a merge commit
+                parent_count=$(git cat-file -p "$commit" | grep -c "^parent" || echo "1")
+                
+                if [ "$parent_count" -gt 1 ]; then
+                    # This is a merge commit, check what was merged
+                    second_parent=$(git rev-parse "$commit^2" 2>/dev/null || echo "")
+                    
+                    # Get branch names that might contain this commit
+                    merged_branches=$(git branch -r --contains "$second_parent" 2>/dev/null | grep -E "(hotfix/|release/)" | head -1)
+                    
+                    if [ -n "$merged_branches" ]; then
+                        echo "✅ Allowed: merge from hotfix/release branch"
+                        continue
+                    fi
+                fi
+                
+                # Block everything else
+                echo "❌ BLOCKED: Only hotfix/* and release/* can be merged to main!"
+                echo "❌ Rejected commit: $commit_msg"
+                echo ""
+                echo "✅ Allowed merges to main:"
+                echo "   - hotfix/* branches"
+                echo "   - release/* branches"
+                echo ""
+                exit 1
+            done
+            ;;
+            
+        development|develop)
+            echo "🛡️  Checking development branch protection..."
+            
+            # Get commits being pushed
+            if [ "$oldrev" = "0000000000000000000000000000000000000000" ]; then
+                commits=$(git rev-list "$newrev")
+            else
+                commits=$(git rev-list "$oldrev..$newrev")
+            fi
+            
+            # Check each commit
+            for commit in $commits; do
+                commit_msg=$(git log --format=%s -n 1 "$commit")
+                
+                echo "Checking commit: $commit_msg"
+                
+                # Allow feature, release, and hotfix merges
+                if echo "$commit_msg" | grep -E "(Merge|merge).*(feature/|release/|hotfix/)" >/dev/null; then
+                    echo "✅ Allowed: feature/release/hotfix merge to development"
+                    continue
+                fi
+                
+                # Allow direct commits from allowed patterns
+                if echo "$commit_msg" | grep -E "^(feature/|release/|hotfix/)" >/dev/null; then
+                    echo "✅ Allowed: feature/release/hotfix commit to development"
+                    continue
+                fi
+                
+                # Check merge commits
+                parent_count=$(git cat-file -p "$commit" | grep -c "^parent" || echo "1")
+                
+                if [ "$parent_count" -gt 1 ]; then
+                    second_parent=$(git rev-parse "$commit^2" 2>/dev/null || echo "")
+                    merged_branches=$(git branch -r --contains "$second_parent" 2>/dev/null | grep -E "(feature/|release/|hotfix/)" | head -1)
+                    
+                    if [ -n "$merged_branches" ]; then
+                        echo "✅ Allowed: merge from feature/release/hotfix branch"
+                        continue
+                    fi
+                fi
+                
+                # Block everything else
+                echo "❌ BLOCKED: Only feature/*, release/*, and hotfix/* can be merged to development!"
+                echo "❌ Rejected commit: $commit_msg"
+                echo ""
+                echo "✅ Allowed merges to development:"
+                echo "   - feature/* branches"
+                echo "   - release/* branches"  
+                echo "   - hotfix/* branches"
+                echo ""
+                exit 1
+            done
+            ;;
+            
+        *)
+            echo "ℹ️  Non-protected branch, allowing push"
+            ;;
+    esac
     
-    if [ "$branch" = "main" ] || [ "$branch" = "development" ]; then
-        echo "ERROR: Direct pushes to $branch are not allowed!"
-        echo "Please use Pull Request workflow instead."
-        exit 1
-    fi
-    
-    echo "✅ Push to '$branch' allowed"
+    echo "✅ Push to $branch approved!"
 done
 
+echo "🎉 All pushes approved!"
 exit 0
