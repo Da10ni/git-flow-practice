@@ -29,32 +29,9 @@ jobs:
           BRANCH="${{ github.event.pull_request.head.ref }}"
           TARGET="${{ github.event.pull_request.base.ref }}"
           
-          # Branch protection validation
-          if [ "$TARGET" = "main" ]; then
-            # Main branch: only hotfix/* and release/* allowed
-            if [[ ! "$BRANCH" =~ ^(hotfix|release)/ ]]; then
-              echo "❌ INVALID MERGE TO MAIN!"
-              echo "❌ Branch: $BRANCH"
-              echo "❌ Only hotfix/* and release/* can merge to main"
-              # Revert the merge (if possible) or create issue
-              gh issue create --title "🚨 Invalid merge to main: $BRANCH" --body "Branch $BRANCH was merged to main but only hotfix/* and release/* are allowed!"
-              exit 1
-            fi
-          elif [ "$TARGET" = "development" ]; then
-            # Development branch: only hotfix/*, release/*, feature/* allowed  
-            if [[ ! "$BRANCH" =~ ^(hotfix|release|feature)/ ]]; then
-              echo "❌ INVALID MERGE TO DEVELOPMENT!"
-              echo "❌ Branch: $BRANCH"
-              echo "❌ Only hotfix/*, release/*, and feature/* can merge to development"
-              # Revert the merge (if possible) or create issue
-              gh issue create --title "🚨 Invalid merge to development: $BRANCH" --body "Branch $BRANCH was merged to development but only hotfix/*, release/*, and feature/* are allowed!"
-              exit 1
-            fi
-          fi
-          
-          # Check if hotfix or release for sync
+          # Check if hotfix or release
           if [[ ! "$BRANCH" =~ ^(hotfix|release)/ ]]; then
-            echo "Not a hotfix or release branch - no sync needed"
+            echo "Not a hotfix or release branch"
             exit 0
           fi
           
