@@ -51,7 +51,7 @@ if [ -n "$hotfix_branch" ]; then
     git checkout $current_branch || echo "⚠️  Could not return to original branch"
     echo "✅ Hotfix merged into both $current_branch and $other_branch"
 else
-    echo "ℹ️  No hotfix detected — nothing to do"
+    echo "ℹ️  No hotfix detected — nothing to do this"
 fi
 
 exit 0
