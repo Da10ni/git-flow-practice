@@ -18,62 +18,69 @@ case "$current_branch" in
         echo "❌ =================================" >&2
         echo "" >&2
         echo "✅ Correct workflow:" >&2
-        echo "   1. git checkout $current_branch" >&2
-        echo "   2. git checkout -b feature/your-feature" >&2
-        echo "   3. git push origin feature/your-feature" >&2
-        echo "   4. Create Pull Request on GitHub" >&2
+        echo "   1. git checkout -b feature/your-feature" >&2
+        echo "   2. git push origin feature/your-feature" >&2
+        echo "   3. Create Pull Request on GitHub" >&2
         echo "" >&2
         exit 1
         ;;
 esac
 
-# Rest of your existing branch validation logic...
-merge_base_main=$(git merge-base main HEAD 2>/dev/null || echo "")
-main_head=$(git rev-parse main 2>/dev/null || echo "")
-
-merge_base_dev=$(git merge-base development HEAD 2>/dev/null || echo "")
-dev_head=$(git rev-parse development 2>/dev/null || echo "")
-
-# If branch was created from main
-if [ "$merge_base_main" = "$main_head" ]; then
-    case "$current_branch" in
-        hotfix/*)
-            echo "✅ Hotfix branch from main allowed: $current_branch"
-            ;;
-        *)
-            echo "❌ From main branch, only hotfix/* branches allowed!"
-            echo "❌ Your branch: $current_branch"
-            echo "✅ Rename to: hotfix/your-fix-name"
-            exit 1
-            ;;
-    esac
-# If branch was created from development
-elif [ "$merge_base_dev" = "$dev_head" ]; then
-    case "$current_branch" in
-        feature/*|release/*)
-            echo "✅ Feature/Release branch from development allowed: $current_branch"
-            ;;
-        *)
-            echo "❌ From development branch, only feature/* and release/* allowed!"
-            echo "❌ Your branch: $current_branch"
-            echo "✅ Rename to: feature/your-feature OR release/v1.0.0"
-            exit 1
-            ;;
-    esac
-else
-    # Can't determine parent, check general pattern
-    case "$current_branch" in
-        hotfix/*|feature/*|release/*)
-            echo "✅ Valid branch pattern allowed: $current_branch"
-            ;;
-        *)
-            echo "❌ Invalid branch pattern!"
-            echo "❌ Your branch: $current_branch"
-            echo "✅ Use: hotfix/*, feature/*, or release/*"
-            exit 1
-            ;;
-    esac
-fi
+# Check branch naming convention only
+case "$current_branch" in
+    hotfix/*)
+        echo "✅ Hotfix branch pattern valid: $current_branch"
+        
+        # Optional: Check if hotfix exists on remote to determine parent
+        if git ls-remote --heads origin "$current_branch" | grep -q .; then
+            echo "✅ Branch already exists on remote, push allowed"
+        else
+            echo "ℹ️  New hotfix branch (should be from main)"
+        fi
+        ;;
+        
+    feature/*)
+        echo "✅ Feature branch pattern valid: $current_branch"
+        
+        if git ls-remote --heads origin "$current_branch" | grep -q .; then
+            echo "✅ Branch already exists on remote, push allowed"
+        else
+            echo "ℹ️  New feature branch (should be from development)"
+        fi
+        ;;
+        
+    release/*)
+        echo "✅ Release branch pattern valid: $current_branch"
+        
+        if git ls-remote --heads origin "$current_branch" | grep -q .; then
+            echo "✅ Branch already exists on remote, push allowed"
+        else
+            echo "ℹ️  New release branch (should be from development)"
+        fi
+        ;;
+        
+    bugfix/*)
+        echo "✅ Bugfix branch pattern valid: $current_branch"
+        ;;
+        
+    *)
+        echo "" >&2
+        echo "❌ =================================" >&2
+        echo "❌ Invalid branch pattern!" >&2
+        echo "❌ Your branch: $current_branch" >&2
+        echo "❌ =================================" >&2
+        echo "" >&2
+        echo "✅ Allowed patterns:" >&2
+        echo "   - feature/* (from development)" >&2
+        echo "   - release/* (from development)" >&2
+        echo "   - hotfix/*  (from main)" >&2
+        echo "   - bugfix/*  (from any)" >&2
+        echo "" >&2
+        echo "Example: git branch -m feature/add-login" >&2
+        echo "" >&2
+        exit 1
+        ;;
+esac
 
 echo "✅ Push allowed!"
 exit 0
