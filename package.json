@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prepare": "sh setup-hooks.sh",
+    "postinstall": "node setup-hooks.js",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

@@ -26,7 +26,7 @@ function App() {
 
   const features = [
     {
-      icon: "🚀",
+      icon: "🚀",      sd
       title: "Lightning Fast",
       description:
         "Built with cutting-edge technology for optimal performance and speed.",
