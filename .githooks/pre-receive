@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+while read oldrev newrev refname; do
+    if [ "$newrev" = "0000000000000000000000000000000000000000" ]; then
+        continue
+    fi
+    
+    branch=$(echo "$refname" | cut -d'/' -f3)
+    
+    if [ "$branch" = "main" ] || [ "$branch" = "development" ]; then
+        echo "ERROR: Direct pushes to $branch are not allowed!"
+        echo "Please use Pull Request workflow instead."
+        exit 1
+    fi
+    
+    echo "✅ Push to '$branch' allowed"
+done
+
+exit 0

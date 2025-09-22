@@ -1,0 +1,57 @@
+#!/bin/sh
+# .git/hooks/post-merge
+# Make executable: chmod +x .git/hooks/post-merge
+
+echo "🔍 Post-merge hook triggered"
+
+# Get current branch
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+echo "Current branch: $current_branch"
+
+# Function to detect last merged hotfix branch
+detect_hotfix_branch() {
+    # Try merge commit message first
+    merged=$(git log -1 --pretty=format:"%s" | grep "Merge branch 'hotfix/" | sed "s/Merge branch '//;s/'.*//")
+    
+    if [ -n "$merged" ]; then
+        echo "$merged"
+        return
+    fi
+    
+    # Fallback: check last 5 commits for hotfix branch pattern (covers fast-forward merges)
+    merged=$(git log --oneline -5 | grep -o "hotfix/[^ ]*" | head -1)
+    echo "$merged"
+}
+
+hotfix_branch=$(detect_hotfix_branch)
+echo "Detected hotfix branch: $hotfix_branch"
+
+# Only continue if a hotfix branch was merged
+if [ -n "$hotfix_branch" ]; then
+    echo "🔥 Hotfix detected: $hotfix_branch"
+    git fetch --all
+    
+    # Determine the other branch to merge hotfix into
+    if [ "$current_branch" = "main" ]; then
+        other_branch="development"
+    elif [ "$current_branch" = "development" ]; then
+        other_branch="main"
+    else
+        echo "ℹ️  Merge not on main/development — skipping auto-merge."
+        exit 0
+    fi
+    
+    # Merge hotfix into the OTHER branch (not current, as it's already merged here)
+    echo "🔄 Auto-merging hotfix into $other_branch..."
+    git checkout $other_branch || { echo "❌ Failed to checkout $other_branch"; exit 1; }
+    git merge "$hotfix_branch" --no-edit || { echo "❌ Merge failed on $other_branch"; exit 1; }
+    git push origin $other_branch || echo "⚠️  Push failed — check remote"
+    
+    # Return to original branch
+    git checkout $current_branch || echo "⚠️  Could not return to original branch"
+    echo "✅ Hotfix merged into both $current_branch and $other_branch"
+else
+    echo "ℹ️  No hotfix detected — nothing to do this"
+fi
+
+exit 0
