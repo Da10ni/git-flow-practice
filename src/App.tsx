@@ -7,7 +7,7 @@ function App() {
   const [scrolled, setScrolled] = useState(false);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
-  // Handle scroll effect for navbar >> pr working
+  // Handle scroll effect for navbar >> pr working end
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
@@ -20,7 +20,7 @@ function App() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 4000);
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
 
