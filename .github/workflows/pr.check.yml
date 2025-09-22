@@ -1,112 +1,59 @@
-name: Git Flow Bidirectional Auto Merge
-
+name: Git Flow Sync
 on:
   pull_request:
     types: [closed]
-    branches:
-      - main
-      - development
+    branches: [main, development]
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  handle-gitflow-merge:
+  sync:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Git
-        run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "actions@github.com"
-
-      - name: Determine branch type and action
-        id: branch-info
-        run: |
-          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
-          TARGET_BRANCH="${{ github.event.pull_request.base.ref }}"
           
-          echo "source_branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
-          echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
+      - name: Setup and Sync
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Check if this is a hotfix or release branch
-          if [[ "$BRANCH_NAME" == hotfix/* ]] || [[ "$BRANCH_NAME" == release/* ]]; then
-            echo "is_hotfix_or_release=true" >> $GITHUB_OUTPUT
-            
-            # Determine which branch to sync to
-            if [[ "$TARGET_BRANCH" == "main" ]]; then
-              echo "sync_to=development" >> $GITHUB_OUTPUT
-            elif [[ "$TARGET_BRANCH" == "development" ]]; then
-              echo "sync_to=main" >> $GITHUB_OUTPUT
-            fi
-            
-            # Extract version for release branches
-            if [[ "$BRANCH_NAME" == release/* ]]; then
-              VERSION=$(echo "$BRANCH_NAME" | sed 's/release\///')
-              echo "version=$VERSION" >> $GITHUB_OUTPUT
-              echo "is_release=true" >> $GITHUB_OUTPUT
-            else
-              echo "is_release=false" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "is_hotfix_or_release=false" >> $GITHUB_OUTPUT
+          # Get info
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          TARGET="${{ github.event.pull_request.base.ref }}"
+          
+          # Check if hotfix or release
+          if [[ ! "$BRANCH" =~ ^(hotfix|release)/ ]]; then
+            echo "Not a hotfix or release branch"
+            exit 0
           fi
-
-      - name: Sync to the other branch
-        if: steps.branch-info.outputs.is_hotfix_or_release == 'true'
-        run: |
-          SOURCE_BRANCH="${{ steps.branch-info.outputs.target_branch }}"
-          DEST_BRANCH="${{ steps.branch-info.outputs.sync_to }}"
           
-          echo "Syncing from $SOURCE_BRANCH to $DEST_BRANCH"
+          # Determine sync direction
+          if [ "$TARGET" = "main" ]; then
+            SYNC_TO="development"
+          elif [ "$TARGET" = "development" ]; then
+            SYNC_TO="main"
+          else
+            exit 0
+          fi
           
-          # Checkout destination branch
-          git checkout $DEST_BRANCH
-          git pull origin $DEST_BRANCH
+          # Try merge
+          git fetch origin
+          git checkout $SYNC_TO
           
-          # Merge the source branch
-          git merge origin/$SOURCE_BRANCH --no-ff -m "Auto-sync ${{ steps.branch-info.outputs.source_branch }} from $SOURCE_BRANCH to $DEST_BRANCH"
-          
-          # Push changes
-          git push origin $DEST_BRANCH
-        continue-on-error: true
-
-      - name: Tag release (if merged to main)
-        if: |
-          steps.branch-info.outputs.is_release == 'true' && 
-          steps.branch-info.outputs.target_branch == 'main'
-        run: |
-          git checkout main
-          git pull origin main
-          
-          # Create and push tag
-          git tag -a "v${{ steps.branch-info.outputs.version }}" -m "Release version ${{ steps.branch-info.outputs.version }}"
-          git push origin "v${{ steps.branch-info.outputs.version }}"
-
-      - name: Create PR if sync fails
-        if: failure() && steps.branch-info.outputs.is_hotfix_or_release == 'true'
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: auto-sync-${{ github.run_number }}
-          title: "Auto-sync ${{ steps.branch-info.outputs.source_branch }} to ${{ steps.branch-info.outputs.sync_to }} (conflicts)"
-          body: |
-            Automatic sync failed due to conflicts.
-            
-            Branch: ${{ steps.branch-info.outputs.source_branch }}
-            From: ${{ steps.branch-info.outputs.target_branch }}
-            To: ${{ steps.branch-info.outputs.sync_to }}
-            
-            Please resolve conflicts manually.
-          base: ${{ steps.branch-info.outputs.sync_to }}
-          labels: |
-            auto-sync
-            conflict
-
-      - name: Delete merged branch
-        if: steps.branch-info.outputs.is_hotfix_or_release == 'true'
-        run: |
-          git push origin --delete "${{ steps.branch-info.outputs.source_branch }}" || true
+          if git merge origin/$TARGET -m "Sync from $TARGET after $BRANCH"; then
+            git push origin $SYNC_TO
+          else
+            # Create PR on conflict
+            SYNC_BRANCH="sync-${GITHUB_RUN_NUMBER}"
+            git checkout -b $SYNC_BRANCH origin/$TARGET
+            git push origin $SYNC_BRANCH
+            gh pr create --base $SYNC_TO --head $SYNC_BRANCH --title "Sync $TARGET to $SYNC_TO" --body "Conflicts need resolution"
+          fi
