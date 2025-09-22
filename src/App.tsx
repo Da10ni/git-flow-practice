@@ -13,7 +13,7 @@ function App() {
       setScrolled(window.scrollY > 50);
     };
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);  
   }, []);
 
   // Auto-rotate testimonials
