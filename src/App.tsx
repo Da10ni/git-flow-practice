@@ -633,7 +633,6 @@ function App() {
             </div>
           </div>
         </div>
-        testing22
       </footer>
     </div>
   );
