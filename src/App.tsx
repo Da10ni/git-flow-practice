@@ -7,7 +7,7 @@ function App() {
   const [scrolled, setScrolled] = useState(false);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
-  // Handle scroll effect for navbar
+  // Handle scroll effect for navbar >> pr working
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
@@ -26,7 +26,7 @@ function App() {
 
   const features = [
     {
-      icon: "🚀",      sd
+      icon: "🚀",  
       title: "Lightning Fast",
       description:
         "Built with cutting-edge technology for optimal performance and speed.",
