@@ -10,4 +10,5 @@ createRoot(document.getElementById('root')!).render(
   // checkings
   //testing
   // something
+  // merge sync betweem main and developemnt is working..
 )
