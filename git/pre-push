@@ -1,79 +1,79 @@
-# #!/bin/sh
+#!/bin/sh
 
-# echo "Remote: $1"
-# echo "URL: $2"
+echo "Remote: $1"
+echo "URL: $2"
 
-# # Get current branch
-# current_branch=$(git rev-parse --abbrev-ref HEAD)
-# echo "Current branch: $current_branch"
+# Get current branch
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+echo "Current branch: $current_branch"
 
-# # Block direct pushes to protected branches
-# case "$current_branch" in
-#     main|master|development|develop)
-#         echo "" >&2
-#         echo "❌ =================================" >&2
-#         echo "❌ DIRECT PUSH BLOCKED!" >&2
-#         echo "❌ Branch: $current_branch" >&2
-#         echo "❌ Use Pull Request workflow!" >&2
-#         echo "❌ =================================" >&2
-#         echo "" >&2
-#         echo "✅ Correct workflow:" >&2
-#         echo "   1. git checkout $current_branch" >&2
-#         echo "   2. git checkout -b feature/your-feature" >&2
-#         echo "   3. git push origin feature/your-feature" >&2
-#         echo "   4. Create Pull Request on GitHub" >&2
-#         echo "" >&2
-#         exit 1
-#         ;;
-# esac
+# Block direct pushes to protected branches
+case "$current_branch" in
+    main|master|development|develop)
+        echo "" >&2
+        echo "❌ =================================" >&2
+        echo "❌ DIRECT PUSH BLOCKED!" >&2
+        echo "❌ Branch: $current_branch" >&2
+        echo "❌ Use Pull Request workflow!" >&2
+        echo "❌ =================================" >&2
+        echo "" >&2
+        echo "✅ Correct workflow:" >&2
+        echo "   1. git checkout $current_branch" >&2
+        echo "   2. git checkout -b feature/your-feature" >&2
+        echo "   3. git push origin feature/your-feature" >&2
+        echo "   4. Create Pull Request on GitHub" >&2
+        echo "" >&2
+        exit 1
+        ;;
+esac
 
-# # Rest of your existing branch validation logic...
-# merge_base_main=$(git merge-base main HEAD 2>/dev/null || echo "")
-# main_head=$(git rev-parse main 2>/dev/null || echo "")
+# Rest of your existing branch validation logic...
+merge_base_main=$(git merge-base main HEAD 2>/dev/null || echo "")
+main_head=$(git rev-parse main 2>/dev/null || echo "")
 
-# merge_base_dev=$(git merge-base development HEAD 2>/dev/null || echo "")
-# dev_head=$(git rev-parse development 2>/dev/null || echo "")
+merge_base_dev=$(git merge-base development HEAD 2>/dev/null || echo "")
+dev_head=$(git rev-parse development 2>/dev/null || echo "")
 
-# # If branch was created from main
-# if [ "$merge_base_main" = "$main_head" ]; then
-#     case "$current_branch" in
-#         hotfix/*)
-#             echo "✅ Hotfix branch from main allowed: $current_branch"
-#             ;;
-#         *)
-#             echo "❌ From main branch, only hotfix/* branches allowed!"
-#             echo "❌ Your branch: $current_branch"
-#             echo "✅ Rename to: hotfix/your-fix-name"
-#             exit 1
-#             ;;
-#     esac
-# # If branch was created from development
-# elif [ "$merge_base_dev" = "$dev_head" ]; then
-#     case "$current_branch" in
-#         feature/*|release/*)
-#             echo "✅ Feature/Release branch from development allowed: $current_branch"
-#             ;;
-#         *)
-#             echo "❌ From development branch, only feature/* and release/* allowed!"
-#             echo "❌ Your branch: $current_branch"
-#             echo "✅ Rename to: feature/your-feature OR release/v1.0.0"
-#             exit 1
-#             ;;
-#     esac
-# else
-#     # Can't determine parent, check general pattern
-#     case "$current_branch" in
-#         hotfix/*|feature/*|release/*)
-#             echo "✅ Valid branch pattern allowed: $current_branch"
-#             ;;
-#         *)
-#             echo "❌ Invalid branch pattern!"
-#             echo "❌ Your branch: $current_branch"
-#             echo "✅ Use: hotfix/*, feature/*, or release/*"
-#             exit 1
-#             ;;
-#     esac
-# fi
+# If branch was created from main
+if [ "$merge_base_main" = "$main_head" ]; then
+    case "$current_branch" in
+        hotfix/*)
+            echo "✅ Hotfix branch from main allowed: $current_branch"
+            ;;
+        *)
+            echo "❌ From main branch, only hotfix/* branches allowed!"
+            echo "❌ Your branch: $current_branch"
+            echo "✅ Rename to: hotfix/your-fix-name"
+            exit 1
+            ;;
+    esac
+# If branch was created from development
+elif [ "$merge_base_dev" = "$dev_head" ]; then
+    case "$current_branch" in
+        feature/*|release/*)
+            echo "✅ Feature/Release branch from development allowed: $current_branch"
+            ;;
+        *)
+            echo "❌ From development branch, only feature/* and release/* allowed!"
+            echo "❌ Your branch: $current_branch"
+            echo "✅ Rename to: feature/your-feature OR release/v1.0.0"
+            exit 1
+            ;;
+    esac
+else
+    # Can't determine parent, check general pattern
+    case "$current_branch" in
+        hotfix/*|feature/*|release/*)
+            echo "✅ Valid branch pattern allowed: $current_branch"
+            ;;
+        *)
+            echo "❌ Invalid branch pattern!"
+            echo "❌ Your branch: $current_branch"
+            echo "✅ Use: hotfix/*, feature/*, or release/*"
+            exit 1
+            ;;
+    esac
+fi
 
-# echo "✅ Push allowed!"
-# exit 0
+echo "✅ Push allowed!"
+exit 0
