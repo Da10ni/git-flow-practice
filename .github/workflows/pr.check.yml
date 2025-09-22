@@ -29,31 +29,31 @@ jobs:
           BRANCH="${{ github.event.pull_request.head.ref }}"
           TARGET="${{ github.event.pull_request.base.ref }}"
           
-          # Check if hotfix or release
-          if [[ ! "$BRANCH" =~ ^(hotfix|release)/ ]]; then
-            echo "Not a hotfix or release branch"
-            exit 0
-          fi
-          
-          # Determine sync direction
+          # Branch protection validation
           if [ "$TARGET" = "main" ]; then
-            SYNC_TO="development"
+            # Main branch: only hotfix/* and release/* allowed
+            if [[ ! "$BRANCH" =~ ^(hotfix|release)/ ]]; then
+              echo "❌ INVALID MERGE TO MAIN!"
+              echo "❌ Branch: $BRANCH"
+              echo "❌ Only hotfix/* and release/* can merge to main"
+              # Revert the merge (if possible) or create issue
+              gh issue create --title "🚨 Invalid merge to main: $BRANCH" --body "Branch $BRANCH was merged to main but only hotfix/* and release/* are allowed!"
+              exit 1
+            fi
           elif [ "$TARGET" = "development" ]; then
-            SYNC_TO="main"
-          else
-            exit 0
+            # Development branch: only hotfix/*, release/*, feature/* allowed  
+            if [[ ! "$BRANCH" =~ ^(hotfix|release|feature)/ ]]; then
+              echo "❌ INVALID MERGE TO DEVELOPMENT!"
+              echo "❌ Branch: $BRANCH"
+              echo "❌ Only hotfix/*, release/*, and feature/* can merge to development"
+              # Revert the merge (if possible) or create issue
+              gh issue create --title "🚨 Invalid merge to development: $BRANCH" --body "Branch $BRANCH was merged to development but only hotfix/*, release/*, and feature/* are allowed!"
+              exit 1
+            fi
           fi
           
-          # Try merge
-          git fetch origin
-          git checkout $SYNC_TO
-          
-          if git merge origin/$TARGET -m "Sync from $TARGET after $BRANCH"; then
-            git push origin $SYNC_TO
-          else
-            # Create PR on conflict
-            SYNC_BRANCH="sync-${GITHUB_RUN_NUMBER}"
-            git checkout -b $SYNC_BRANCH origin/$TARGET
-            git push origin $SYNC_BRANCH
-            gh pr create --base $SYNC_TO --head $SYNC_BRANCH --title "Sync $TARGET to $SYNC_TO" --body "Conflicts need resolution"
+          # Check if hotfix or release for sync
+          if [[ ! "$BRANCH" =~ ^(hotfix|release)/ ]]; then
+            echo "Not a hotfix or release branch - no sync needed"
+            exit 0
           fi
