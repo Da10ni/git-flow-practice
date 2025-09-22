@@ -633,7 +633,7 @@ function App() {
             </div>
           </div>
         </div>
-        testing22 testing 23407856789748764897689wy7348907 89y63
+        testing22 testing 23407856789748764897689wy7348907
       </footer>
     </div>
   );
