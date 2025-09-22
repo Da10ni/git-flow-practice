@@ -26,41 +26,111 @@ case "$current_branch" in
         ;;
 esac
 
-# Check branch naming convention only
+# Function to check if branch was created from specific parent
+check_parent_branch() {
+    local branch=$1
+    local expected_parent=$2
+    
+    # Check if branch already exists on remote (skip parent check)
+    if git ls-remote --heads origin "$branch" 2>/dev/null | grep -q .; then
+        echo "✅ Branch already exists on remote"
+        return 0
+    fi
+    
+    # For new branches, check parent
+    echo "🔍 Checking parent branch for new branch..."
+    
+    # Get the commit where this branch diverged from expected parent
+    local parent_commit=$(git rev-parse "$expected_parent" 2>/dev/null || echo "")
+    if [ -z "$parent_commit" ]; then
+        echo "❌ Parent branch '$expected_parent' not found locally!"
+        return 1
+    fi
+    
+    # Get merge base with expected parent
+    local merge_base=$(git merge-base HEAD "$expected_parent" 2>/dev/null || echo "")
+    
+    # Check if branch was created from expected parent
+    if [ "$merge_base" = "$parent_commit" ]; then
+        echo "✅ Branch was created from $expected_parent"
+        return 0
+    else
+        # Additional check: maybe parent was updated after branch creation
+        # Check if all commits from parent are in current branch
+        local missing_commits=$(git rev-list "$merge_base..$expected_parent" 2>/dev/null | wc -l)
+        if [ "$missing_commits" -eq 0 ]; then
+            echo "✅ Branch contains all commits from $expected_parent"
+            return 0
+        else
+            echo "❌ Branch was NOT created from $expected_parent"
+            echo "❌ Missing $missing_commits commits from $expected_parent"
+            return 1
+        fi
+    fi
+}
+
+# Validate branch patterns and parent branches
 case "$current_branch" in
     hotfix/*)
-        echo "✅ Hotfix branch pattern valid: $current_branch"
+        echo "🏥 Validating hotfix branch: $current_branch"
         
-        # Optional: Check if hotfix exists on remote to determine parent
-        if git ls-remote --heads origin "$current_branch" | grep -q .; then
-            echo "✅ Branch already exists on remote, push allowed"
-        else
-            echo "ℹ️  New hotfix branch (should be from main)"
+        if ! check_parent_branch "$current_branch" "main"; then
+            echo "" >&2
+            echo "❌ =================================" >&2
+            echo "❌ HOTFIX MUST BE FROM MAIN!" >&2
+            echo "❌ Your branch: $current_branch" >&2
+            echo "❌ =================================" >&2
+            echo "" >&2
+            echo "✅ Correct workflow:" >&2
+            echo "   1. git checkout main" >&2
+            echo "   2. git pull origin main" >&2
+            echo "   3. git checkout -b $current_branch" >&2
+            echo "" >&2
+            exit 1
         fi
         ;;
         
     feature/*)
-        echo "✅ Feature branch pattern valid: $current_branch"
+        echo "✨ Validating feature branch: $current_branch"
         
-        if git ls-remote --heads origin "$current_branch" | grep -q .; then
-            echo "✅ Branch already exists on remote, push allowed"
-        else
-            echo "ℹ️  New feature branch (should be from development)"
+        if ! check_parent_branch "$current_branch" "development"; then
+            echo "" >&2
+            echo "❌ =================================" >&2
+            echo "❌ FEATURE MUST BE FROM DEVELOPMENT!" >&2
+            echo "❌ Your branch: $current_branch" >&2
+            echo "❌ =================================" >&2
+            echo "" >&2
+            echo "✅ Correct workflow:" >&2
+            echo "   1. git checkout development" >&2
+            echo "   2. git pull origin development" >&2
+            echo "   3. git checkout -b $current_branch" >&2
+            echo "" >&2
+            exit 1
         fi
         ;;
         
     release/*)
-        echo "✅ Release branch pattern valid: $current_branch"
+        echo "🚀 Validating release branch: $current_branch"
         
-        if git ls-remote --heads origin "$current_branch" | grep -q .; then
-            echo "✅ Branch already exists on remote, push allowed"
-        else
-            echo "ℹ️  New release branch (should be from development)"
+        if ! check_parent_branch "$current_branch" "development"; then
+            echo "" >&2
+            echo "❌ =================================" >&2
+            echo "❌ RELEASE MUST BE FROM DEVELOPMENT!" >&2
+            echo "❌ Your branch: $current_branch" >&2
+            echo "❌ =================================" >&2
+            echo "" >&2
+            echo "✅ Correct workflow:" >&2
+            echo "   1. git checkout development" >&2
+            echo "   2. git pull origin development" >&2
+            echo "   3. git checkout -b $current_branch" >&2
+            echo "" >&2
+            exit 1
         fi
         ;;
         
     bugfix/*)
-        echo "✅ Bugfix branch pattern valid: $current_branch"
+        echo "🐛 Bugfix branch pattern valid: $current_branch"
+        echo "ℹ️  Bugfix branches can be created from any parent"
         ;;
         
     *)
@@ -71,10 +141,15 @@ case "$current_branch" in
         echo "❌ =================================" >&2
         echo "" >&2
         echo "✅ Allowed patterns:" >&2
-        echo "   - feature/* (from development)" >&2
-        echo "   - release/* (from development)" >&2
-        echo "   - hotfix/*  (from main)" >&2
-        echo "   - bugfix/*  (from any)" >&2
+        echo "   FROM main:" >&2
+        echo "   - hotfix/*  (urgent fixes)" >&2
+        echo "" >&2
+        echo "   FROM development:" >&2
+        echo "   - feature/* (new features)" >&2
+        echo "   - release/* (release prep)" >&2
+        echo "" >&2
+        echo "   FROM any branch:" >&2
+        echo "   - bugfix/*  (general fixes)" >&2
         echo "" >&2
         echo "Example: git branch -m feature/add-login" >&2
         echo "" >&2
@@ -82,5 +157,5 @@ case "$current_branch" in
         ;;
 esac
 
-echo "✅ Push allowed!"
+echo "✅ All checks passed! Push allowed!"
 exit 0
