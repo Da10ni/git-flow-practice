@@ -7,7 +7,7 @@ function App() {
   const [scrolled, setScrolled] = useState(false);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
-  // Handle scroll effect for navbar
+  // Handle scroll effect for navbar >> pr working
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
@@ -26,7 +26,7 @@ function App() {
 
   const features = [
     {
-      icon: "🚀",
+      icon: "🚀",  
       title: "Lightning Fast",
       description:
         "Built with cutting-edge technology for optimal performance and speed.",
@@ -275,7 +275,7 @@ function App() {
               <p className="text-xl text-gray-600 mb-8 max-w-2xl">
                 Transform your ideas into stunning applications with our
                 cutting-edge platform. Join thousands of developers who trust us
-                to bring their visions to life.
+                to bring their visions to life.shahab-ud-din ghori
               </p>
 
               {/* Hero Actions */}
@@ -631,9 +631,11 @@ function App() {
                 LinkedIn
               </a>
             </div>
+            asdfasdfasdfasdfasddas
           </div>
         </div>
         testing22 testing 23407856789748764897689wy7348907
+        testing22 yes we are typing/ checking hotfix branch
       </footer>
     </div>
   );
