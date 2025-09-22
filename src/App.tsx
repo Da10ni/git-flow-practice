@@ -7,7 +7,7 @@ function App() {
   const [scrolled, setScrolled] = useState(false);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
-  // Handle scroll effect for navbar >> pr working end
+  // Handle scroll effect for navbar >> pr working end >>>>>>>>>
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
