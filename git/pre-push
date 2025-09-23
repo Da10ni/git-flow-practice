@@ -41,7 +41,7 @@ check_parent_branch() {
     echo "🔍 Checking parent branch for new branch..."
     
     # Get the commit where this branch diverged from expected parent
-    local parent_commit=$(git rev-parse "$expected_parent" 2>/dev/null || echo "")
+   local parent_commit=$(git rev-parse "origin/$expected_parent" 2>/dev/null || git rev-parse "$expected_parent" 2>/dev/null || echo "")
     if [ -z "$parent_commit" ]; then
         echo "❌ Parent branch '$expected_parent' not found locally!"
         return 1
@@ -71,7 +71,7 @@ check_parent_branch() {
 
 # Validate branch patterns and parent branches
 case "$current_branch" in
-    hotfix/*)
+    hotfix*)
         echo "🏥 Validating hotfix branch: $current_branch"
         
         if ! check_parent_branch "$current_branch" "main"; then
@@ -90,7 +90,7 @@ case "$current_branch" in
         fi
         ;;
         
-    feature/*)
+    feature*)
         echo "✨ Validating feature branch: $current_branch"
         
         if ! check_parent_branch "$current_branch" "development"; then
@@ -109,7 +109,7 @@ case "$current_branch" in
         fi
         ;;
         
-    release/*)
+    release*)
         echo "🚀 Validating release branch: $current_branch"
         
         if ! check_parent_branch "$current_branch" "development"; then
@@ -142,16 +142,16 @@ case "$current_branch" in
         echo "" >&2
         echo "✅ Allowed patterns:" >&2
         echo "   FROM main:" >&2
-        echo "   - hotfix/*  (urgent fixes)" >&2
+        echo "   - hotfix*   (urgent fixes)" >&2
         echo "" >&2
         echo "   FROM development:" >&2
-        echo "   - feature/* (new features)" >&2
-        echo "   - release/* (release prep)" >&2
+        echo "   - feature*  (new features)" >&2
+        echo "   - release*  (release prep)" >&2
         echo "" >&2
         echo "   FROM any branch:" >&2
         echo "   - bugfix/*  (general fixes)" >&2
         echo "" >&2
-        echo "Example: git branch -m feature/add-login" >&2
+        echo "Example: git branch -m feature-add-login" >&2
         echo "" >&2
         exit 1
         ;;
