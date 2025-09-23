@@ -37,36 +37,65 @@ check_parent_branch() {
         return 0
     fi
     
-    # For new branches, check parent
-    echo "🔍 Checking parent branch for new branch..."
+    # For new branches, check immediate parent
+    echo "🔍 Checking immediate parent branch for new branch..."
     
-    # Get the commit where this branch diverged from expected parent
+    # Get the expected parent's latest commit
     local parent_commit=$(git rev-parse "$expected_parent" 2>/dev/null || echo "")
     if [ -z "$parent_commit" ]; then
         echo "❌ Parent branch '$expected_parent' not found locally!"
+        echo "ℹ️  Try: git fetch origin && git checkout $expected_parent"
         return 1
     fi
     
-    # Get merge base with expected parent
-    local merge_base=$(git merge-base HEAD "$expected_parent" 2>/dev/null || echo "")
+    # Method 1: Check if current branch's first commit is directly from expected parent
+    # Get the first commit of current branch that's not in expected parent
+    local first_unique_commit=$(git rev-list --reverse "$expected_parent..HEAD" | head -n 1)
     
-    # Check if branch was created from expected parent
-    if [ "$merge_base" = "$parent_commit" ]; then
-        echo "✅ Branch was created from $expected_parent"
+    if [ -z "$first_unique_commit" ]; then
+        echo "✅ Branch has no unique commits (same as $expected_parent)"
         return 0
-    else
-        # Additional check: maybe parent was updated after branch creation
-        # Check if all commits from parent are in current branch
-        local missing_commits=$(git rev-list "$merge_base..$expected_parent" 2>/dev/null | wc -l)
-        if [ "$missing_commits" -eq 0 ]; then
-            echo "✅ Branch contains all commits from $expected_parent"
+    fi
+    
+    # Get the parent of the first unique commit
+    local actual_parent=$(git rev-parse "$first_unique_commit^" 2>/dev/null || echo "")
+    
+    # Check if the actual parent is the tip of expected parent branch
+    if [ "$actual_parent" = "$parent_commit" ]; then
+        echo "✅ Branch was created directly from $expected_parent"
+        return 0
+    fi
+    
+    # Method 2: Alternative check using reflog (if available)
+    # This checks the reflog to see where the branch was created from
+    local branch_creation=$(git reflog show --format="%H %gs" "$current_branch" 2>/dev/null | grep "branch: Created from" | head -n 1)
+    
+    if echo "$branch_creation" | grep -q "$expected_parent"; then
+        echo "✅ Branch was created from $expected_parent (via reflog)"
+        return 0
+    fi
+    
+    # Method 3: Check if all commits from expected parent are in current branch
+    # AND current branch was diverged from expected parent recently
+    local commits_behind=$(git rev-list --count "$current_branch..$expected_parent" 2>/dev/null || echo "999")
+    
+    if [ "$commits_behind" -eq 0 ]; then
+        # Current branch contains all commits from expected parent
+        # Now check if divergence point is recent (expected parent's tip)
+        local divergence_point=$(git merge-base "$current_branch" "$expected_parent")
+        
+        if [ "$divergence_point" = "$parent_commit" ]; then
+            echo "✅ Branch diverged from tip of $expected_parent"
             return 0
-        else
-            echo "❌ Branch was NOT created from $expected_parent"
-            echo "❌ Missing $missing_commits commits from $expected_parent"
-            return 1
         fi
     fi
+    
+    # If all methods fail, branch was not created from expected parent
+    echo "❌ Branch was NOT created directly from $expected_parent"
+    echo "ℹ️  Actual parent commit: $actual_parent"
+    echo "ℹ️  Expected parent commit: $parent_commit"
+    echo "ℹ️  Commits behind $expected_parent: $commits_behind"
+    return 1
 }
 
 # Validate branch patterns and parent branches
@@ -85,6 +114,11 @@ case "$current_branch" in
             echo "   1. git checkout main" >&2
             echo "   2. git pull origin main" >&2
             echo "   3. git checkout -b $current_branch" >&2
+            echo "" >&2
+            echo "ℹ️  If you need to recreate the branch:" >&2
+            echo "   git branch -D $current_branch" >&2
+            echo "   git checkout main" >&2
+            echo "   git checkout -b $current_branch" >&2
             echo "" >&2
             exit 1
         fi
@@ -105,6 +139,11 @@ case "$current_branch" in
             echo "   2. git pull origin development" >&2
             echo "   3. git checkout -b $current_branch" >&2
             echo "" >&2
+            echo "ℹ️  If you need to recreate the branch:" >&2
+            echo "   git branch -D $current_branch" >&2
+            echo "   git checkout development" >&2
+            echo "   git checkout -b $current_branch" >&2
+            echo "" >&2
             exit 1
         fi
         ;;
@@ -123,6 +162,11 @@ case "$current_branch" in
             echo "   1. git checkout development" >&2
             echo "   2. git pull origin development" >&2
             echo "   3. git checkout -b $current_branch" >&2
+            echo "" >&2
+            echo "ℹ️  If you need to recreate the branch:" >&2
+            echo "   git branch -D $current_branch" >&2
+            echo "   git checkout development" >&2
+            echo "   git checkout -b $current_branch" >&2
             echo "" >&2
             exit 1
         fi
@@ -158,4 +202,4 @@ case "$current_branch" in
 esac
 
 echo "✅ All checks passed! Push allowed!"
-exit 0
+exit 0  
